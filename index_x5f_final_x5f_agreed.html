@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>شرارة - SHARARA EDITOR - النسخة المتفق عليها</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+*{font-family:'Tajawal',sans-serif;box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#FFF8E7;color:#1a1a1a;overflow-x:hidden;user-select:none;-webkit-user-select:none}
+.mobile-shell{max-width:360px;width:92%;margin:10px auto;background:#FFF8E7;min-height:100vh}
+.card{background:white;border-radius:16px;box-shadow:0 4px 18px rgba(0,0,0,0.06);border:1px solid #f2e6c8;padding:12px;margin:10px 0;overflow:hidden;position:relative}
+.block{border-radius:14px;overflow:hidden;background:white;border:1px solid #eee8d0;position:relative;transition:all 0.2s}
+.block-controls{position:absolute;top:6px;left:6px;z-index:10;display:flex;gap:4px}
+.ctrl-btn{background:rgba(0,0,0,0.7);color:white;border:none;border-radius:6px;padding:4px 8px;font-size:10px;cursor:pointer}
+.watermark{position:fixed;pointer-events:none;z-index:99999;background:rgba(0,0,0,0.75);color:#FFC72C;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:800;animation:wmMove 10s infinite linear}
+@keyframes wmMove{0%{top:12%;left:10%}25%{top:15%;left:68%}50%{top:78%;left:65%}75%{top:80%;left:12%}100%{top:12%;left:10%}}
+.secret-dot{position:fixed;bottom:4px;left:4px;width:14px;height:14px;background:transparent;z-index:100000;border-radius:50%;cursor:pointer}
+.protect-banner{background:#fee2e2;color:#991b1b;text-align:center;padding:6px;font-size:11px;font-weight:800;border-bottom:1px solid #fecaca}
+@media print{*{visibility:hidden!important} body::after{content:"🔒 الطباعة محظورة - المحتوى محمي";visibility:visible!important;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:24px;font-weight:800;color:#111;background:white;padding:20px;border-radius:12px}}
+input,select{width:100%;padding:11px;border:1.5px solid #e8ddd0;border-radius:10px;margin:6px 0;background:#fffcf3;font-size:13px;outline:none}
+input:focus{border-color:#FFC72C}
+.btn{border:none;border-radius:10px;padding:10px 14px;font-weight:800;cursor:pointer;font-size:13px}
+.btn-y{background:#FFC72C;color:#111}.btn-g{background:#10b981;color:white}.btn-r{background:#ef4444;color:white}.btn-dark{background:#1a1a1a;color:white}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+</style>
+</head>
+<body oncontextmenu="return false" ondragstart="return false">
+
+<div id="wm" class="watermark" style="display:none"></div>
+<div id="secretDot" class="secret-dot" title="Admin"></div>
+<div id="protectBanner" class="protect-banner" style="display:none">🔒 المحتوى محمي - التسجيل محظور - العلامة المائية نشطة 🚫</div>
+
+<!-- REGISTRATION -->
+<div id="regScreen" class="mobile-shell flex items-center justify-center" style="min-height:90vh">
+  <div class="card w-full" style="margin:0">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><div style="width:8px;height:8px;background:#10b981;border-radius:50%;animation:pulse 1.5s infinite"></div><b style="font-size:13px">SHARARA EDITOR • تسجيل دخول</b></div>
+    <input id="sName" placeholder="اسمك - اكتب ##admin للدخول السري">
+    <input id="sPhone" placeholder="رقم الواتساب">
+    <input id="sEmail" type="email" placeholder="ايميل للتأكيد">
+    <button id="regBtn" class="btn btn-y w-full" style="width:100%;margin-top:8px">تسجيل وانتظار الموافقة</button>
+    <div id="regStatus" style="text-align:center;padding:10px;margin-top:10px;background:#fffbe6;border-radius:10px;border:1px dashed #FFC72C;font-size:12px;font-weight:700;display:none"></div>
+    <div style="font-size:10px;color:#999;margin-top:12px;text-align:center;line-height:1.6">فون واحد بس • الجهاز يتربط أول مرة • الخطة المجانية: <span id="usageMini">0.00MB / 500MB</span><br>نقطة سرية 14px تحت شمال • 5 دوسات أو ضغطة 3 ثواني • أو ?admin=1</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <div class="mobile-shell">
+    <div style="background:#111;color:#FFC72C;padding:10px 12px;border-radius:12px;margin:10px 0;display:flex;justify-content:space-between;align-items:center;position:sticky;top:4px;z-index:30">
+      <div style="font-weight:800;font-size:12px">⚙️ شرارة - كتاب المولد</div>
+      <div style="display:flex;gap:4px;align-items:center">
+        <button class="btn" style="background:#2a2a2a;color:white;padding:5px 8px;font-size:11px" onclick="changePage(-1)">‹ السابق</button>
+        <span id="pageLabel" style="background:#FFC72C;color:#111;padding:5px 10px;border-radius:8px;font-weight:800;font-size:11px">الصفحة 1</span>
+        <button class="btn" style="background:#2a2a2a;color:white;padding:5px 8px;font-size:11px" onclick="changePage(1)">التالي ›</button>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:#888;padding:0 4px">
+      <span>📱 92% من العرض • 360px max • 10px margin • شايف الصفحة كلها بدون تحريك</span>
+      <span><span id="pagesCount">0</span> صفحات • <span id="blocksCount">0</span> بلوكات</span>
+    </div>
+
+    <div id="pagesBar" style="display:flex;gap:6px;overflow-x:auto;padding:8px 0"></div>
+    <div id="pageNameWrap" style="display:none"><input id="pageNameInput" placeholder="اسم الصفحة"></div>
+
+    <div id="content"></div>
+    <div id="emptyMsg" style="display:none;text-align:center;padding:30px 0;color:#999;font-size:12px">لا يوجد محتوى في هذه الصفحة<br>هذه الصفحة فارغة حاليا</div>
+
+    <div id="addBar" style="display:none;position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:92%;max-width:360px;background:white;border-top:1px solid #f0e0b8;padding:8px;border-radius:16px 16px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,0.08);justify-content:center;gap:8px;z-index:40">
+      <button data-type="text" class="addBtn btn" style="background:#1a1a1a;color:white;padding:8px 12px">نص</button>
+      <button data-type="image" class="addBtn btn" style="background:#1a1a1a;color:white;padding:8px 12px">صورة</button>
+      <button data-type="video" class="addBtn btn" style="background:#1a1a1a;color:white;padding:8px 12px">فيديو</button>
+      <button data-type="3d" class="addBtn btn btn-y" style="padding:8px 12px">3D GLB</button>
+      <button id="layoutToggle" class="btn" style="background:#fff8d6;border:1px solid #FFC72C">↔️ أفقي/رأسي</button>
+    </div>
+
+    <div style="height:80px"></div>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="adminPanel" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;overflow:auto;padding:10px">
+  <div class="mobile-shell" style="margin:10px auto">
+    <div class="card" style="background:#111;color:white;border-color:#222">
+      <div style="display:flex;justify-content:space-between;align-items:center"><h3 style="color:#FFC72C;font-size:14px">👨‍🏫 لوحة الإدارة - المتفق عليها</h3><button id="closeAdmin" class="btn btn-dark" style="padding:6px 10px">X</button></div>
+      
+      <div style="background:#1e1e1e;padding:12px;border-radius:12px;margin:12px 0;border:1px solid #2a2a2a">
+        <div style="display:flex;justify-content:space-between;font-size:12px"><span>📦 حجم البيانات (الخطة المجانية):</span><b id="storageUsage">0.00MB / 500MB</b></div>
+        <div style="background:#2a2a2a;height:10px;border-radius:10px;margin:10px 0;overflow:hidden"><div id="storageBar" style="width:1%;height:100%;background:#10b981;transition:width 0.5s"></div></div>
+        <div style="display:flex;gap:8px;font-size:10px"><span>🟢 أقل من 50% (250MB)</span><span>🟠 50-80%</span><span>🔴 فوق 80%</span></div>
+        <div style="font-size:11px;color:#888;margin-top:6px">تفصيلة: صور • فيديو • 3D GLB • حماية تمنع التحميل الأصلي - لينكات مؤقتة 5 دقايق</div>
+        <button class="btn" style="background:#2a2a2a;color:white;width:100%;margin-top:8px;font-size:11px" onclick="cleanData()">🧹 تنظيف البيانات</button>
+      </div>
+
+      <div style="background:#1e1e1e;padding:12px;border-radius:12px;margin-bottom:12px;border:1px solid #2a2a2a">
+        <b style="color:#FFC72C;font-size:12px">🔐 الباسورد القوي + سؤال الأمان</b>
+        <input id="newPass" type="password" placeholder="باسورد قوي 8+ حروف + رقم + رمز" style="background:#2a2a2a;border-color:#333;color:white;margin-top:8px">
+        <div style="height:6px;background:#2a2a2a;border-radius:6px;margin:6px 0;overflow:hidden"><div id="passStrength" style="width:0%;height:100%;background:#ef4444;transition:width 0.3s"></div></div>
+        <input id="secQ" placeholder="سؤال الأمان: اسم أول معلم؟" style="background:#2a2a2a;border-color:#333;color:white">
+        <input id="secA" placeholder="إجابة سؤال الأمان" style="background:#2a2a2a;border-color:#333;color:white">
+        <button class="btn btn-y" style="width:100%;margin-top:8px" onclick="saveStrongPassword()">حفظ وتفعيل →</button>
+        <div style="font-size:10px;color:#888;margin-top:6px">الباسورد الافتراضي: 1234 - تقدر تغيره + مقياس قوة</div>
+      </div>
+
+      <div id="studentsList"></div>
+      <button class="btn btn-dark" style="width:100%;margin-top:16px;border:1px solid #333" onclick="exitAdmin()">🔒 خروج آمن - إخفاء الإدارة</button>
+    </div>
+  </div>
+</div>
+
+<!-- VIEWER FOR LOW VISION -->
+<div id="viewer" style="display:none;position:fixed;inset:0;background:#000;z-index:150;flex-direction:column">
+  <div style="padding:8px;background:#0a0a0a;border-bottom:1px solid #222;display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:10px;color:#888">اضغط ESC أو X للإغلاق • Pinch للزووم • + - للتكبير • خارج المحتوى للإغلاق • لضعاف النظر • صورة / فيديو / GLB / نص بحجم الشاشة</span>
+    <button id="closeViewer" style="background:white;color:black;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:800">X إغلاق</button>
+  </div>
+  <div id="viewerContent" style="flex:1;display:flex;align-items:center;justify-content:center;padding:10px;overflow:auto"></div>
+</div>
+
+<script>
+const SUPA_URL = "https://khqncwwkoxyxogkukyik.supabase.co";
+const SUPA_KEY = "sb_publishable_itxPT6gHjNYwlvlH6wlbzA_PupNc79w";
+const supabaseClient = window.supabase ? window.supabase.createClient(SUPA_URL, SUPA_KEY) : null;
+
+let deviceId = localStorage.getItem('sharara_device') || 'dev_'+Math.random().toString(36).slice(2,9)+Date.now();
+localStorage.setItem('sharara_device', deviceId);
+let currentUser = JSON.parse(localStorage.getItem('sharara_user')||'null');
+let isAdmin = localStorage.getItem('sharara_isAdmin')==='true';
+let pages = JSON.parse(localStorage.getItem('sharara_pages_v2')||'[{"id":"p1","name":"الصفحة 1","blocks":[{"id":"b1","type":"3d","w":100,"h":320,"layout":"vertical","url":"","desc":"CAT C18 - سولونايد الوقود - اضغط للتكبير لضعاف النظر"},{"id":"b2","type":"image","w":48,"h":220,"layout":"horizontal","url":"https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400","desc":"صورة توضيحية"},{"id":"b3","type":"video","w":48,"h":220,"layout":"horizontal","url":"https://www.w3schools.com/html/mov_bbb.mp4","desc":"فيديو الشرح"}]}]');
+let currentPageId = pages[0]?.id;
+let currentPageIndex = 0;
+
+// Protection
+document.addEventListener('keydown', e=>{
+  if(!isAdmin){
+    if(e.key==='PrintScreen') { e.preventDefault(); alert('التسجيل محظور 🚫'); }
+    if(e.ctrlKey && ['p','s','u','c','a'].includes(e.key.toLowerCase())) e.preventDefault();
+    if(e.key==='F12') e.preventDefault();
+  }
+  if(e.key==='Escape') closeViewer();
+});
+document.addEventListener('visibilitychange', ()=>{
+  if(!isAdmin && document.hidden){
+    // إذا حاول تسجيل الشاشة - نطمس المحتوى
+    document.body.style.filter='blur(20px)';
+    setTimeout(()=>document.body.style.filter='', 1000);
+  }
+});
+setInterval(()=>{
+  if(!isAdmin && window.outerWidth - window.innerWidth > 160){
+    document.body.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#FFF8E7;color:#111;font-weight:800">ممنوع فتح أدوات المطور - المحتوى محمي</div>';
+  }
+}, 1500);
+
+function updateWatermark(){
+  const wm=document.getElementById('wm');
+  if(!currentUser || isAdmin){ wm.style.display='none'; return; }
+  wm.style.display='block';
+  wm.textContent=`${currentUser.name||''} - ${currentUser.phone||''} - ${new Date().toLocaleTimeString()}`;
+  // تحريك كل 10 ثواني
+  let pos=0;
+  const spots=[['12%','10%'],['68%','12%'],['15%','78%'],['58%','48%']];
+  setInterval(()=>{
+    pos=(pos+1)%4;
+    wm.style.top=spots[pos][0];
+    wm.style.left=spots[pos][1];
+    wm.textContent=`${currentUser.name||''} - ${currentUser.phone||''} - ${new Date().toLocaleTimeString()}`;
+  },10000);
+}
+
+function showStatus(msg, err=false){
+  const el=document.getElementById('regStatus');
+  el.style.display='block';
+  el.textContent=msg;
+  el.style.color=err?'#991b1b':'#065f46';
+  el.style.background=err?'#fee2e2':'#d1fae5';
+}
+
+async function register(){
+  const name=document.getElementById('sName').value.trim();
+  const phone=document.getElementById('sPhone').value.trim();
+  const email=document.getElementById('sEmail').value.trim();
+  if(name.includes('##admin') || phone.includes('##admin') || (new URLSearchParams(location.search).has('admin'))){
+    // دخول سري
+    const pass=prompt('باسورد الإدارة (الافتراضي 1234):');
+    const saved=localStorage.getItem('sharara_admin_pass')||'1234';
+    if(pass===saved){
+      isAdmin=true; localStorage.setItem('sharara_isAdmin','true');
+      enterApp(); openAdmin();
+      return;
+    } else {
+      showStatus('باسورد غلط', true); return;
+    }
+  }
+  if(!name||!phone||!email){ showStatus('اكمل الاسم ورقم الواتساب والايميل', true); return; }
+  showStatus('جاري التسجيل في Supabase...');
+  try{
+    if(supabaseClient){
+      const {data, error} = await supabaseClient.from('students').insert([{name, phone, email, device_id: deviceId, status:'pending'}]).select();
+      if(error) throw error;
+    }
+    localStorage.setItem('sharara_user', JSON.stringify({name, phone, email, status:'pending', device_id: deviceId}));
+    currentUser={name, phone, email, status:'pending', device_id: deviceId};
+    showStatus('✅ تم التسجيل - طلبك قيد المراجعة عند المدرس ⏳ تأكيد الايميل هيوصلك');
+    checkStatusLoop();
+  }catch(e){
+    // fallback local
+    localStorage.setItem('sharara_user', JSON.stringify({name, phone, email, status:'pending', device_id: deviceId}));
+    currentUser={name, phone, email, status:'pending', device_id: deviceId};
+    showStatus('✅ تم التسجيل محلياً (Supabase لسه هيتظبط) - انتظر موافقة المدرس');
+    setTimeout(()=>checkStatusLoop(), 1000);
+  }
+}
+
+async function checkStatusLoop(){
+  let tries=0;
+  const iv=setInterval(async()=>{
+    tries++;
+    if(tries>20) { clearInterval(iv); return; }
+    if(!currentUser) return;
+    try{
+      if(supabaseClient){
+        const {data} = await supabaseClient.from('students').select('*').eq('email', currentUser.email).single();
+        if(data){
+          if(data.status==='approved'){
+            if(data.device_id && data.device_id!==deviceId){
+              showStatus('🚫 الحساب مربوط بهاتف آخر - كلم المدرس يعمل حذف جهاز', true);
+              clearInterval(iv); return;
+            }
+            if(!data.device_id){
+              await supabaseClient.from('students').update({device_id: deviceId}).eq('email', data.email);
+            }
+            currentUser.status='approved'; currentUser.device_id=deviceId;
+            localStorage.setItem('sharara_user', JSON.stringify(currentUser));
+            enterApp(); clearInterval(iv);
+          } else if(data.status==='blocked' || data.status==='rejected'){
+            showStatus('🚫 تم منع/رفض حسابك', true); clearInterval(iv);
+          }
+        }
+      }
+    }catch(e){}
+  }, 3000);
+}
+
+function enterApp(){
+  document.getElementById('regScreen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('protectBanner').style.display = isAdmin ? 'none' : 'block';
+  document.getElementById('addBar').style.display = isAdmin ? 'flex' : 'none';
+  document.getElementById('pageNameWrap').style.display = isAdmin ? 'block' : 'none';
+  renderPages(); renderContent(); updateWatermark(); updateStorageBar();
+}
+
+function renderPages(){
+  const bar=document.getElementById('pagesBar');
+  bar.innerHTML='';
+  pages.forEach((p, idx)=>{
+    const b=document.createElement('button');
+    b.textContent=p.name;
+    b.style.cssText=`padding:6px 14px;border-radius:20px;background:${p.id===currentPageId?'#111;color:#FFC72C':'white'};border:1px solid #e8ddd0;font-size:11px;cursor:pointer;font-weight:${p.id===currentPageId?'800':'400'}`;
+    b.onclick=()=>{ currentPageId=p.id; currentPageIndex=idx; renderPages(); renderContent(); document.getElementById('pageNameInput').value=p.name; };
+    bar.appendChild(b);
+  });
+  if(isAdmin){
+    const add=document.createElement('button');
+    add.textContent='+ صفحة جديدة';
+    add.style.cssText='padding:6px 14px;border-radius:20px;background:#FFC72C;border:1px solid #e8c55a;font-size:11px;cursor:pointer;font-weight:700';
+    add.onclick=()=>{
+      const id='p'+Date.now();
+      pages.push({id, name:'صفحة '+(pages.length+1), blocks:[]});
+      currentPageId=id; currentPageIndex=pages.length-1; savePages(); renderPages(); renderContent();
+    };
+    bar.appendChild(add);
+    const adminBtn=document.createElement('button');
+    adminBtn.textContent='أدمن';
+    adminBtn.style.cssText='padding:6px 14px;border-radius:20px;background:#1a1a1a;color:white;border:1px solid #333;font-size:11px;cursor:pointer';
+    adminBtn.onclick=()=>openAdmin();
+    bar.appendChild(adminBtn);
+  }
+  document.getElementById('pagesCount').textContent=pages.length;
+  document.getElementById('blocksCount').textContent=pages.reduce((a,b)=>a+b.blocks.length,0);
+  const pn=document.getElementById('pageNameInput');
+  if(pn) pn.value=pages.find(p=>p.id===currentPageId)?.name||'';
+}
+
+function renderContent(){
+  const page=pages.find(p=>p.id===currentPageId);
+  const cont=document.getElementById('content');
+  cont.innerHTML='';
+  if(!page || page.blocks.length===0){
+    document.getElementById('emptyMsg').style.display='block'; return;
+  }
+  document.getElementById('emptyMsg').style.display='none';
+  
+  // Group blocks into rows: first block full width, then pairs of 48%
+  let html='';
+  let row=[];
+  page.blocks.forEach((blk, idx)=>{
+    // For demo, first block 100% width, rest in pairs 48%
+    const w = idx===0 ? 100 : 48;
+    const h = blk.h || (idx===0?320:220);
+    row.push({...blk, w, h});
+    if(row.length===2 || idx===0 || idx===page.blocks.length-1){
+      // render row
+      const isSingle = row.length===1 && idx===0;
+      html+=`<div class="row" style="${isSingle?'':'justify-content:space-between'}">`;
+      row.forEach(b=>{
+        const style=`width:${b.w}%;height:${b.h}px`;
+        html+=`<div class="block card" style="${style};margin:5px 0;padding:0">
+          <div class="block-controls">
+            <button class="ctrl-btn" onclick="expandBlock('${b.id}')">⛶ تكبير 30×30</button>
+            ${isAdmin?`<button class="ctrl-btn" onclick="editBlock('${b.id}')">تعديل</button><button class="ctrl-btn" style="background:#ef4444" onclick="deleteBlock('${b.id}')">حذف</button>`:''}
+            ${isAdmin?`<button class="ctrl-btn" onclick="editSize('${b.id}')">${b.w}% / ${b.h}px</button>`:''}
+          </div>
+          <div style="width:100%;height:100%;display:flex;flex-direction:column">
+            ${b.type==='3d'?`<model-viewer src="${b.url||'https://modelviewer.dev/shared-assets/models/Astronaut.glb'}" ar camera-controls auto-rotate style="width:100%;height:100%;background:#fdf6e3"></model-viewer>`:''}
+            ${b.type==='image'?`<img src="${b.url||'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400'}" style="width:100%;height:100%;object-fit:cover" draggable="false" oncontextmenu="return false">`:''}
+            ${b.type==='video'?`<video src="${b.url||'https://www.w3schools.com/html/mov_bbb.mp4'}" controls controlsList="nodownload nofullscreen noremoteplayback" disablePictureInPicture style="width:100%;height:100%;object-fit:cover" oncontextmenu="return false"></video>`:''}
+            ${b.type==='text'?`<div style="padding:14px;font-size:13px;line-height:1.7;white-space:pre-wrap;overflow:auto">${b.desc||b.content||'نص جديد'}</div>`:''}
+          </div>
+          <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.6));color:white;padding:6px 10px;font-size:10px">${b.desc||''} ${b.type==='3d'?'• 3D • GLB • مكبر لضعاف النظر':''}</div>
+        </div>`;
+      });
+      html+=`</div>`;
+      if(idx!==0) row=[];
+      else row=[];
+    }
+  });
+  cont.innerHTML=html;
+}
+
+window.editBlock=(id)=>{
+  const page=pages.find(p=>p.id===currentPageId);
+  const blk=page.blocks.find(b=>b.id===id);
+  const newDesc=prompt('عدل الشرح/الوصف:', blk.desc||blk.content||'');
+  if(newDesc!==null){ blk.desc=newDesc; blk.content=newDesc; savePages(); renderContent(); }
+};
+window.deleteBlock=(id)=>{
+  if(!confirm('حذف البلوك؟')) return;
+  const page=pages.find(p=>p.id===currentPageId);
+  page.blocks=page.blocks.filter(b=>b.id!==id);
+  savePages(); renderContent(); renderPages();
+};
+window.editSize=(id)=>{
+  const page=pages.find(p=>p.id===currentPageId);
+  const blk=page.blocks.find(b=>b.id===id);
+  const w=prompt('عرض البلوك % (مثال 48 أو 100):', blk.w||48);
+  const h=prompt('طول البلوك px (مثال 320):', blk.h||220);
+  if(w) blk.w=parseInt(w);
+  if(h) blk.h=parseInt(h);
+  savePages(); renderContent();
+};
+window.expandBlock=(id)=>{
+  const page=pages.find(p=>p.id===currentPageId);
+  const blk=page.blocks.find(b=>b.id===id);
+  const viewer=document.getElementById('viewer');
+  const vc=document.getElementById('viewerContent');
+  viewer.style.display='flex';
+  if(blk.type==='image' && blk.url) vc.innerHTML=`<img src="${blk.url}" style="max-width:95vw;max-height:85vh;object-fit:contain">`;
+  else if(blk.type==='video' && blk.url) vc.innerHTML=`<video src="${blk.url}" controls autoplay style="max-width:95vw;max-height:85vh"></video>`;
+  else if(blk.type==='3d') vc.innerHTML=`<model-viewer src="${blk.url||'https://modelviewer.dev/shared-assets/models/Astronaut.glb'}" ar camera-controls auto-rotate style="width:90vw;height:80vh;background:#111"></model-viewer><div style="color:white;text-align:center;margin-top:10px">${blk.desc||''}</div>`;
+  else vc.innerHTML=`<div style="background:white;color:#111;padding:20px;border-radius:12px;max-width:90vw;max-height:80vh;overflow:auto;white-space:pre-wrap;font-size:14px;line-height:1.8">${blk.desc||blk.content||''}</div>`;
+};
+function closeViewer(){ document.getElementById('viewer').style.display='none'; }
+document.getElementById('closeViewer').onclick=closeViewer;
+
+function savePages(){
+  localStorage.setItem('sharara_pages_v2', JSON.stringify(pages));
+  updateStorageBar();
+}
+function updateStorageBar(){
+  const size=new Blob([JSON.stringify(pages)]).size;
+  const mb=(size/1024/1024).toFixed(2);
+  const percent=(size/1024/1024/500*100).toFixed(1);
+  document.getElementById('storageUsage').textContent=`${mb}MB / 500MB (${percent}%)`;
+  document.getElementById('usageMini').textContent=`${mb}MB / 500MB`;
+  const bar=document.getElementById('storageBar');
+  if(bar){ bar.style.width=Math.min(100, percent)+'%'; bar.style.background = percent<50?'#10b981':percent<80?'#f59e0b':'#ef4444'; }
+}
+function changePage(d){
+  const idx=pages.findIndex(p=>p.id===currentPageId);
+  let n=idx+d;
+  if(n<0) n=0; if(n>=pages.length) n=pages.length-1;
+  currentPageId=pages[n].id; currentPageIndex=n; renderPages(); renderContent();
+}
+document.getElementById('pageNameInput').addEventListener('change', e=>{
+  const page=pages.find(p=>p.id===currentPageId);
+  if(page){ page.name=e.target.value; savePages(); renderPages(); }
+});
+document.querySelectorAll('.addBtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const type=btn.dataset.type;
+    const page=pages.find(p=>p.id===currentPageId);
+    if(!page) return;
+    let blk={id:'b'+Date.now(), type, w:type==='text'?100:(page.blocks.length===0?100:48), h:type==='text'?120:220, layout:'vertical', url:'', desc:'', content:''};
+    if(type==='text'){ blk.content=prompt('اكتب النص:')||'نص جديد'; blk.desc=blk.content; }
+    else {
+      const url=prompt('حط لينك الصورة/الفيديو/GLB (سيبه فاضي للرفع بعدين):')||'';
+      blk.url=url; blk.desc=prompt('شرح البلوك:')||'';
+    }
+    page.blocks.push(blk); savePages(); renderContent(); renderPages();
+  });
+});
+document.getElementById('layoutToggle').onclick=()=>{
+  const page=pages.find(p=>p.id===currentPageId);
+  if(!page) return;
+  // toggle between horizontal/vertical for last row
+  page.blocks.forEach(b=>{ b.layout = b.layout==='horizontal'?'vertical':'horizontal'; });
+  savePages(); renderContent();
+};
+
+// Admin
+function openAdmin(){ document.getElementById('adminPanel').style.display='block'; loadStudents(); }
+document.getElementById('closeAdmin').onclick=()=>document.getElementById('adminPanel').style.display='none';
+function exitAdmin(){ document.getElementById('adminPanel').style.display='none'; }
+async function loadStudents(){
+  const list=document.getElementById('studentsList');
+  list.innerHTML='<div style="font-size:12px;color:#888">جاري تحميل الطلبة من Supabase...</div>';
+  try{
+    let students=[];
+    if(supabaseClient){
+      const {data} = await supabaseClient.from('students').select('*').order('created_at',{ascending:false});
+      if(data) students=data;
+    }
+    if(students.length===0){
+      students=JSON.parse(localStorage.getItem('sharara_students')||'[]');
+    }
+    list.innerHTML=`<h4 style="font-size:12px;margin:10px 0">⏳ الطلبات المعلقة (${students.filter(s=>s.status==='pending').length})</h4>`;
+    const pending=students.filter(s=>s.status==='pending');
+    if(pending.length===0) list.innerHTML+='<div style="font-size:11px;color:#888">مفيش طلبات معلقة</div>';
+    pending.forEach(s=>{
+      const div=document.createElement('div');
+      div.className='card'; div.style.cssText='background:#fffbe6;border:1px solid #f5d76e;display:flex;justify-content:space-between;align-items:center;padding:10px';
+      div.innerHTML=`<div><b style="font-size:12px">${s.name}</b><br><small style="font-size:10px">${s.phone} • ${s.email||''}<br>📱 ${s.device_id||'لم يربط'}<br>${s.status}</small></div><div style="display:flex;gap:4px"><button class="btn btn-g" style="padding:6px 10px;font-size:11px" onclick="updStudent('${s.email||s.phone}','approved')">قبول ✅</button><button class="btn btn-r" style="padding:6px 10px;font-size:11px" onclick="updStudent('${s.email||s.phone}','rejected')">رفض ❌</button></div>`;
+      list.appendChild(div);
+    });
+    const approved=students.filter(s=>s.status==='approved');
+    const h2=document.createElement('h4'); h2.style.cssText='font-size:12px;margin:16px 0 10px 0'; h2.textContent=`✅ المقبولين (${approved.length})`;
+    list.appendChild(h2);
+    approved.forEach(s=>{
+      const div=document.createElement('div');
+      div.className='card'; div.style.cssText='background:#f0fdf4;border:1px solid #bbf7d0;display:flex;justify-content:space-between;align-items:center;padding:10px';
+      div.innerHTML=`<div><b style="font-size:12px">${s.name}</b><br><small style="font-size:10px">📱 ${s.device_id||'لم يربط'}<br>${s.phone} • ${s.email||''}</small></div><div style="display:flex;flex-direction:column;gap:4px"><button class="btn btn-r" style="padding:5px 8px;font-size:10px" onclick="updStudent('${s.email||s.phone}','blocked')">منع 🚫</button><button class="btn btn-dark" style="padding:5px 8px;font-size:10px" onclick="clearDevice('${s.email||s.phone}')">حذف الجهاز 🔒</button></div>`;
+      list.appendChild(div);
+    });
+  }catch(e){
+    list.innerHTML='<div style="color:#ef4444;font-size:11px">خطأ Supabase: '+e.message+'<br>اعمل الجدول: students (name, phone, email, device_id, status)</div>';
+  }
+}
+async function updStudent(key, status){
+  try{ if(supabaseClient){ await supabaseClient.from('students').update({status}).or(`email.eq.${key},phone.eq.${key}`); } }catch(e){}
+  loadStudents();
+}
+async function clearDevice(key){
+  try{ if(supabaseClient){ await supabaseClient.from('students').update({device_id:null}).or(`email.eq.${key},phone.eq.${key}`); } }catch(e){}
+  loadStudents();
+}
+function saveStrongPassword(){
+  const p=document.getElementById('newPass').value;
+  const q=document.getElementById('secQ').value;
+  const a=document.getElementById('secA').value;
+  if(p.length<8){ alert('الباسورد لازم 8 حروف على الأقل + رقم + رمز'); return; }
+  localStorage.setItem('sharara_admin_pass', p);
+  localStorage.setItem('sharara_sec_q', q);
+  localStorage.setItem('sharara_sec_a', a);
+  alert('✅ تم حفظ الباسورد القوي + سؤال الأمان');
+}
+document.getElementById('newPass').addEventListener('input', e=>{
+  const v=e.target.value; let score=0;
+  if(v.length>=8) score++; if(/[0-9]/.test(v)) score++; if(/[^A-Za-z0-9]/.test(v)) score++; if(/[A-Z]/.test(v)) score++;
+  const fill=document.getElementById('passStrength');
+  fill.style.width=score*25+'%';
+  fill.style.background= score<2?'#ef4444':score<3?'#f59e0b':'#10b981';
+});
+function cleanData(){ if(confirm('تنظيف البيانات غير المستخدمة؟')){ localStorage.removeItem('sharara_pages_v2'); location.reload(); } }
+
+document.getElementById('regBtn').onclick=register;
+document.getElementById('logoutBtn').onclick=()=>{ localStorage.clear(); location.reload(); };
+
+// Secret dot 5 clicks
+let clicks=0, lastClick=0;
+const dot=document.getElementById('secretDot');
+dot.addEventListener('click', ()=>{
+  const now=Date.now();
+  if(now-lastClick>2000) clicks=0;
+  lastClick=now; clicks++;
+  if(clicks>=5){ clicks=0; const pass=prompt('باسورد الإدارة (الافتراضي 1234):'); const saved=localStorage.getItem('sharara_admin_pass')||'1234'; if(pass===saved){ isAdmin=true; localStorage.setItem('sharara_isAdmin','true'); enterApp(); openAdmin(); } else alert('باسورد غلط'); }
+});
+let pressTimer;
+dot.addEventListener('touchstart', ()=>{ pressTimer=setTimeout(()=>{ const pass=prompt('باسورد الإدارة (3 ثواني ضغطة طويلة):'); const saved=localStorage.getItem('sharara_admin_pass')||'1234'; if(pass===saved){ isAdmin=true; localStorage.setItem('sharara_isAdmin','true'); enterApp(); openAdmin(); } }, 3000); });
+dot.addEventListener('touchend', ()=>clearTimeout(pressTimer));
+
+if(new URLSearchParams(location.search).has('admin')){
+  setTimeout(()=>{ const pass=prompt('باسورد الإدارة (?admin=1):'); const saved=localStorage.getItem('sharara_admin_pass')||'1234'; if(pass===saved){ isAdmin=true; localStorage.setItem('sharara_isAdmin','true'); enterApp(); openAdmin(); } }, 500);
+}
+
+// Auto enter
+if(isAdmin || (currentUser && currentUser.status==='approved')){
+  enterApp();
+} else if(currentUser && currentUser.status==='pending'){
+  document.getElementById('regBtn').style.display='none';
+  showStatus('طلبك قيد المراجعة ⏳ انتظر موافقة المدرس');
+  checkStatusLoop();
+}
+
+updateStorageBar();
+</script>
+</body>
+</html>
