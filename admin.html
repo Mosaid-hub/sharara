@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Final All Features</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0f1115;color:#fff;font-family:system-ui}
+#login{position:fixed;inset:0;background:#0f1115;display:flex;align-items:center;justify-content:center;z-index:99999}
+#loginBox{background:#1a1d24;padding:24px;border-radius:16px;width:90%;max-width:320px;text-align:center}
+input,button,select,textarea{width:100%;padding:12px;border-radius:10px;border:1px solid #333;background:#111;color:#fff;margin:6px 0}
+button{background:#4f7cff;border:0;font-weight:700}
+#main{display:none}
+#toolbar{position:sticky;top:0;z-index:200;background:#1a1d24;padding:8px;display:flex;gap:6px;flex-wrap:wrap}
+#toolbar button,#toolbar select{width:auto;padding:10px 14px;background:#222}
+#pagesBar{display:flex;gap:6px;overflow:auto;padding:8px;background:#15181f}
+.pageTab{padding:6px 12px;border-radius:20px;background:#222;cursor:pointer}
+.pageTab.active{background:#4f7cff}
+#canvas{position:relative;width:100%;min-height:800px;background:#fff;border:2px dashed #333;overflow:hidden;touch-action:none}
+.block{position:absolute;border:2px solid transparent;touch-action:none;user-select:none}
+.block.selected{border-color:#4f7cff}
+.h{position:absolute;width:22px;height:22px;background:#ffeb3b;border:2px solid #000;border-radius:50%}
+.h.nw{top:-11px;left:-11px}.h.ne{top:-11px;right:-11px}.h.sw{bottom:-11px;left:-11px}.h.se{bottom:-11px;right:-11px}
+.block img,.block video{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
+#props{background:#1a1d24;padding:10px;display:none}
+#props.show{display:block}
+#status{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#00c853;color:#fff;padding:10px 20px;border-radius:20px;display:none;z-index:9999}
+#upProg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;align-items:center;justify-content:center}
+#fsModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:20000;align-items:center;justify-content:center;flex-direction:column}
+#fsModal.show{display:flex}
+#fsContent{width:95%;height:85%;display:flex;align-items:center;justify-content:center;flex-direction:column}
+#fsContent img,#fsContent video{max-width:100%;max-height:100%;object-fit:contain}
+.fsText{color:#fff;font-size:28px;white-space:pre-wrap;text-align:center;max-width:90%;background:#111;padding:20px;border-radius:12px}
+.preview-mode #pagesBar,.preview-mode #props,.preview-mode #students,.preview-mode .h{display:none!important}
+.preview-mode .block.selected{border-color:transparent!important}
+/* في المعاينة السماح بالضغط لفتح كامل الشاشة لكن منع السحب */
+.preview-mode .block{cursor:pointer}
+</style>
+</head>
+<body>
+<div id="status"></div>
+<div id="upProg"><div style="background:#1a1d24;padding:24px;border-radius:16px;width:90%;max-width:320px;text-align:center"><div id="pText">بيرفع...</div><div style="width:100%;height:10px;background:#333;border-radius:10px;overflow:hidden;margin:10px 0"><div id="pBar" style="width:0%;height:100%;background:#00c853;transition:width 0.3s"></div></div><div id="pFile" style="font-size:12px;color:#aaa"></div></div></div>
+<div id="fsModal"><button onclick="document.getElementById('fsModal').classList.remove('show')" style="position:absolute;top:10px;right:10px;background:#d32f2f;color:#fff;border:0;padding:10px 16px;border-radius:10px">✖</button><div id="fsContent"></div></div>
+<div id="login"><div id="loginBox"><h2>🔒 Admin محمي</h2><input id="email" type="email" placeholder="admin@sharara.com" value="admin@sharara.com"><input id="pass" type="password" placeholder="الباسورد"><button id="loginBtn">دخول آمن</button><p style="font-size:11px;color:#888">افتح من Chrome - لازم نت</p><p id="loginErr" style="color:#ff5252;font-size:12px;display:none"></p></div></div>
+<div id="main"><div id="toolbar"><select id="pageSel"></select><button onclick="addPage()">+ صفحة</button><button onclick="addText()">+ نص</button><button onclick="pick('image')">+ صورة</button><button onclick="pick('video')">+ فيديو</button><button onclick="pick('model')">+ 3D</button><button onclick="togglePre()" style="background:#9c27b0" id="btnPre">👁️ معاينة</button><button onclick="showStorage()" style="background:#ff9800">📊 المساحة</button><button onclick="save()" style="background:#00c853">💾 حفظ</button><button onclick="del()" style="background:#d32f2f">🗑️ حذف</button></div><div id="pagesBar"></div><div id="canvas"></div><div id="props"><div id="propBox"></div></div><div id="students"><h3>الطلبة</h3><div id="stuList">...</div></div><div id="storagePanel" style="display:none;background:#1a1d24;padding:12px;margin-top:10px;border-radius:10px;border:1px solid #333"><h3>📊 استهلاك المساحة</h3><div id="storageInfo">جاري الحساب...</div><button onclick="document.getElementById('storagePanel').style.display='none'" style="background:#333">إغلاق</button></div></div>
+<input type="file" id="fileIn" style="display:none">
+<script>
+document.getElementById('loginBtn').onclick=async function(){
+ var email=document.getElementById('email').value.trim();
+ var pass=document.getElementById('pass').value;
+ var errEl=document.getElementById('loginErr');
+ errEl.style.display='none';
+ if(!email||!pass){ errEl.textContent='اكتب الإيميل والباسورد'; errEl.style.display='block'; return; }
+ this.textContent='جاري الدخول...'; this.disabled=true;
+ try{
+  if(!supa){
+   var sc=document.createElement('script'); sc.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+   await new Promise((res,rej)=>{ sc.onload=res; sc.onerror=rej; document.head.appendChild(sc); });
+   supa=supabase.createClient('https://orxinctkhfadvoqoakxy.supabase.co','sb_publishable_OHc4faE-1i5zpL9HgUCf8Q_z5fv2b6g');
+  }
+  var r=await supa.auth.signInWithPassword({email:email,password:pass});
+  if(r.error){ errEl.textContent=r.error.message; errEl.style.display='block'; throw r.error; }
+  document.getElementById('login').style.display='none';
+  document.getElementById('main').style.display='block';
+  setTimeout(initAfterAuth,100);
+ }catch(e){ console.error(e); }
+ finally{ document.getElementById('loginBtn').textContent='دخول آمن'; document.getElementById('loginBtn').disabled=false; }
+};
+async function initAfterAuth(){
+ var md=document.createElement('script'); md.type='module'; md.src='https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js'; document.head.appendChild(md);
+ render(); loadStu(); toast('تم الدخول الآمن ✅');
+}
+
+var supa=null;
+// حماية: supa هيتعمل بعد تسجيل الدخول الآمن
+var pages=JSON.parse(localStorage.getItem('sharara_final_all')||'null')||[{id:'p1',name:'صفحة 1',blocks:[]}];
+var cur=pages[0].id; var sel=null; var pType=null; var isPre=false;
+function toast(m){var s=document.getElementById('status');s.textContent=m;s.style.display='block';setTimeout(function(){s.style.display='none'},2500)}
+function init(){ /* init قديم - دلوقتي بنستخدم initAfterAuth بعد تسجيل الدخول */ }
+function initOld(){
+ var sc=document.createElement('script'); sc.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+ sc.onload=function(){try{if(!supa) supa=supabase.createClient('https://orxinctkhfadvoqoakxy.supabase.co','sb_publishable_OHc4faE-1i5zpL9HgUCf8Q_z5fv2b6g');loadStu();toast('تم الاتصال');}catch(e){}};
+ document.head.appendChild(sc);
+ var md=document.createElement('script'); md.type='module'; md.src='https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js'; document.head.appendChild(md);
+ render();
+}
+function togglePre(){isPre=!isPre;document.body.classList.toggle('preview-mode',isPre);document.getElementById('btnPre').textContent=isPre?'✏️ تعديل':'👁️ معاينة';render();}
+async function freshUrl(b){if(!b.path||!b.bucket) return b.url||''; if(!supa) return b.url||''; try{var r=await supa.storage.from(b.bucket).createSignedUrl(b.path,3600);return r.data?.signedUrl||b.url||'';}catch(e){return b.url||'';}}
+async function render(){
+ var selEl=document.getElementById('pageSel'); var bar=document.getElementById('pagesBar'); selEl.innerHTML=''; bar.innerHTML='';
+ pages.forEach(function(p){var o=document.createElement('option');o.value=p.id;o.textContent=p.name;if(p.id===cur)o.selected=true;selEl.appendChild(o);var d=document.createElement('div');d.className='pageTab'+(p.id===cur?' active':'');d.textContent=p.name;d.onclick=(function(id){return function(){cur=id;sel=null;render();}})(p.id);bar.appendChild(d);});
+ selEl.onchange=function(e){cur=e.target.value;sel=null;render();};
+ var cv=document.getElementById('canvas'); cv.innerHTML=''; var pg=pages.find(function(x){return x.id===cur});
+ for(var i=0;i<pg.blocks.length;i++){
+  var b=pg.blocks[i];
+  var url=b.url; if(b.path&&b.bucket&&supa){url=await freshUrl(b);}
+  var el=document.createElement('div'); el.className='block'+(sel===b.id?' selected':''); el.style.left=b.x+'px'; el.style.top=b.y+'px'; el.style.width=b.w+'px'; el.style.height=b.h+'px'; el.dataset.id=b.id;
+  var descHtml = b.desc ? '<div style="background:rgba(0,0,0,0.7);color:#fff;font-size:11px;padding:3px;position:absolute;bottom:0;left:0;right:0;white-space:pre-wrap">'+b.desc+'</div>' : '';
+  if(b.type==='text'){el.innerHTML='<div style="width:100%;height:100%;color:'+(b.color||'#000')+';font-size:'+(b.fontSize||22)+'px;white-space:pre-wrap;overflow:auto">'+(b.text||'نص')+'</div>';}
+  if(b.type==='image'&&url){el.innerHTML='<img src="'+url+'">'+descHtml;}
+  if(b.type==='video'&&url){el.innerHTML='<video src="'+url+'" controls></video>'+descHtml;}
+  if(b.type==='model'&&url){el.innerHTML='<model-viewer src="'+url+'" camera-controls auto-rotate style="width:100%;height:100%;background:#eee"></model-viewer>'+descHtml;}
+  if(b.type==='model'&&!url){el.innerHTML='<div style="width:100%;height:100%;background:#eee;display:flex;align-items:center;justify-content:center">3D</div>'+descHtml;}
+  if(!isPre){
+   el.innerHTML+='<div class="h nw" data-d="nw"></div><div class="h ne" data-d="ne"></div><div class="h sw" data-d="sw"></div><div class="h se" data-d="se"></div>';
+   (function(block,elem){elem.addEventListener('pointerdown',function(e){startDrag(e,block);}); elem.querySelectorAll('.h').forEach(function(h){h.addEventListener('pointerdown',function(e){startRes(e,block,h.dataset.d);});}); elem.addEventListener('dblclick',function(){openFS(block.id);});})(b,el);
+  }else{
+   // في وضع المعاينة: ضغطتين للتكبير فقط - زي ما طلبت
+   (function(block,elem){elem.addEventListener('dblclick',function(){openFS(block.id);});})(b,el);
+  }
+  cv.appendChild(el);
+ }
+ if(!isPre) renderProps(); else document.getElementById('props').classList.remove('show');
+}
+function renderProps(){
+ var box=document.getElementById('props'); var inner=document.getElementById('propBox');
+ if(!sel){box.classList.remove('show');return;}
+ var b=pages.find(function(p){return p.id===cur}).blocks.find(function(x){return x.id===sel});
+ if(!b){box.classList.remove('show');return;}
+ box.classList.add('show');
+ if(b.type==='text'){
+  inner.innerHTML='<textarea id="tText" rows="3">'+b.text+'</textarea><input id="tCol" type="color" value="'+(b.color||'#000000')+'"><input id="tSize" type="number" value="'+(b.fontSize||22)+'"><button onclick="applyTxt()" style="width:100%;background:#4f7cff;padding:10px;border-radius:8px;border:0;color:#fff;margin-top:6px">تطبيق النص</button><button onclick="openFS(\''+b.id+'\')" style="width:100%;background:#9c27b0;padding:10px;border-radius:8px;border:0;color:#fff;margin-top:6px">⛶ كامل الشاشة</button>';
+ }else{
+  inner.innerHTML='<p>'+b.type+' - '+(b.path||'')+'</p><label style="font-size:12px;color:#aaa">شرح توضيحي:</label><textarea id="tDesc" rows="3" placeholder="اكتب شرح للصورة/الفيديو...">'+(b.desc||'')+'</textarea><button onclick="applyDesc()" style="width:100%;background:#00c853;padding:10px;border-radius:8px;border:0;color:#fff;margin-top:6px">حفظ الشرح</button><div style="display:flex;gap:6px;margin-top:6px"><button onclick="openFS(\''+b.id+'\')" style="flex:1;background:#9c27b0;padding:10px;border-radius:8px;border:0;color:#fff">⛶ شاشة</button><button onclick="del()" style="flex:1;background:#d32f2f;padding:10px;border-radius:8px;border:0;color:#fff">حذف</button></div>';
+ }
+}
+function applyTxt(){var b=pages.find(function(p){return p.id===cur}).blocks.find(function(x){return x.id===sel});b.text=document.getElementById('tText').value;b.color=document.getElementById('tCol').value;b.fontSize=parseInt(document.getElementById('tSize').value)||22;render();}
+function applyDesc(){var b=pages.find(function(p){return p.id===cur}).blocks.find(function(x){return x.id===sel});var el=document.getElementById('tDesc');if(el){b.desc=el.value; render(); toast('تم حفظ الشرح');}}
+function addPage(){var id='p'+Date.now();pages.push({id:id,name:'صفحة '+(pages.length+1),blocks:[]});cur=id;sel=null;render();}
+function addText(){var pg=pages.find(function(p){return p.id===cur});var b={id:'b'+Date.now(),type:'text',x:20,y:20,w:260,h:80,text:'اكتب هنا',fontSize:24,color:'#000'};pg.blocks.push(b);sel=b.id;render();}
+function del(){if(!sel)return;var pg=pages.find(function(p){return p.id===cur});pg.blocks=pg.blocks.filter(function(x){return x.id!==sel});sel=null;render();}
+function pick(t){pType=t;var inp=document.getElementById('fileIn');if(t==='image')inp.accept='image/*';if(t==='video')inp.accept='video/*';if(t==='model')inp.accept='.glb,.gltf';inp.click();}
+function openFS(id){
+ var b=pages.find(function(p){return p.id===cur}).blocks.find(function(x){return x.id===id});if(!b)return;
+ var m=document.getElementById('fsModal');var c=document.getElementById('fsContent');m.classList.add('show');
+ var desc = b.desc ? '<div style="background:rgba(0,0,0,0.8);color:#fff;padding:12px;border-radius:8px;margin-top:10px;max-width:90%;text-align:center;white-space:pre-wrap">'+b.desc+'</div>' : '';
+ if(b.type==='text'){c.innerHTML='<div class="fsText">'+(b.text||'')+'</div>';}
+ if(b.type==='image'){c.innerHTML='<div style="display:flex;flex-direction:column;align-items:center"><img src="'+b.url+'">'+desc+'</div>';}
+ if(b.type==='video'){c.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;width:100%"><video src="'+b.url+'" controls autoplay style="width:100%;max-height:70vh"></video>'+desc+'</div>';}
+ if(b.type==='model'){c.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;width:100%;height:100%"><model-viewer src="'+b.url+'" camera-controls auto-rotate style="width:100%;height:80%;background:#222;min-height:300px"></model-viewer>'+desc+'</div>';}
+}
+document.getElementById('fileIn').onchange=async function(e){
+ var file=e.target.files[0];if(!file)return;
+ if(!supa){alert('شغل النت وافتح من كروم');return;}
+ var bucket=pType==='image'?'images':pType==='video'?'videos':'models';
+ var path=Date.now()+'_'+file.name.replace(/[^a-z0-9._-]/gi,'_');
+ var prog=document.getElementById('upProg'); var bar=document.getElementById('pBar'); var txt=document.getElementById('pText'); var fTxt=document.getElementById('pFile');
+ prog.style.display='flex'; bar.style.width='10%'; txt.textContent='بيرفع...'; fTxt.textContent=file.name+' ('+(file.size/1024/1024).toFixed(1)+' MB)';
+ var intv=setInterval(function(){var w=parseInt(bar.style.width); if(w<90) bar.style.width=(w+5)+'%';},300);
+ var up=await supa.storage.from(bucket).upload(path,file);
+ clearInterval(intv);
+ if(up.error){prog.style.display='none'; alert(up.error.message); e.target.value=''; return;}
+ bar.style.width='100%'; txt.textContent='تم ✅'; setTimeout(function(){prog.style.display='none'; bar.style.width='0%';},800);
+ var signed=await supa.storage.from(bucket).createSignedUrl(path,3600);
+ var url=signed.data.signedUrl;
+ var pg=pages.find(function(p){return p.id===cur});
+ pg.blocks.push({id:'b'+Date.now(),type:pType,x:20,y:20,w:260,h:180,url:url,path:path,bucket:bucket});
+ sel=pg.blocks[pg.blocks.length-1].id; render(); toast('تم الرفع'); e.target.value='';
+};
+var drag=null; var dragEl=null;
+function startDrag(e,b){
+ if(isPre) return;
+ if(e.target.classList.contains('h')) return;
+ if(e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT'||e.target.tagName==='BUTTON') return;
+ e.preventDefault();
+ if(sel!==b.id){
+  sel=b.id;
+  document.querySelectorAll('.block').forEach(function(el){el.classList.remove('selected');});
+  renderProps();
+  var curEl=document.querySelector('.block[data-id="'+b.id+'"]');
+  // after render, re-find
+ }
+ dragEl=e.currentTarget;
+ drag={id:b.id,sx:e.clientX,sy:e.clientY,ox:b.x,oy:b.y};
+ try{dragEl.setPointerCapture(e.pointerId);}catch(err){}
+ window.addEventListener('pointermove',onDrag,{passive:false});
+ window.addEventListener('pointerup',endDrag);
+}
+function onDrag(e){
+ if(!drag||!dragEl) return;
+ e.preventDefault();
+ var b=pages.find(function(p){return p.id===cur}).blocks.find(function(x){return x.id===drag.id});
+ if(!b) return;
+ b.x=drag.ox + (e.clientX-drag.sx);
+ b.y=drag.oy + (e.clientY-drag.sy);
+ dragEl.style.left=b.x+'px';
+ dragEl.style.top=b.y+'px';
+ dragEl.style.transition='none';
+}
+function endDrag(e){
+ if(dragEl&&e){try{dragEl.releasePointerCapture(e.pointerId);}catch(err){} dragEl.style.transition='';}
+ drag=null; dragEl=null;
+ window.removeEventListener('pointermove',onDrag);
+ window.removeEventListener('pointerup',endDrag);
+}
+var rs=null; var rsEl=null;
+function startRes(e,b,dir){
+ if(isPre) return;
+ e.stopPropagation(); e.preventDefault();
+ if(sel!==b.id){sel=b.id; renderProps();}
+ var blockEl=e.currentTarget.closest ? e.currentTarget.closest('.block') : e.currentTarget.parentElement;
+ rsEl=blockEl;
+ rs={id:b.id,dir:dir,sx:e.clientX,sy:e.clientY,ox:b.x,oy:b.y,ow:b.w,oh:b.h};
+ try{e.currentTarget.setPointerCapture(e.pointerId);}catch(err){}
+ window.addEventListener('pointermove',onRes,{passive:false});
+ window.addEventListener('pointerup',endRes);
+}
+function onRes(e){
+ if(!rs||!rsEl) return;
+ e.preventDefault();
+ var b=pages.find(function(p){return p.id===cur}).blocks.find(function(x){return x.id===rs.id});
+ if(!b) return;
+ var dx=e.clientX-rs.sx; var dy=e.clientY-rs.sy;
+ var newW=rs.ow, newH=rs.oh, newX=rs.ox, newY=rs.oy;
+ if(rs.dir.indexOf('e')>-1) newW=Math.max(40,rs.ow+dx);
+ if(rs.dir.indexOf('s')>-1) newH=Math.max(40,rs.oh+dy);
+ if(rs.dir.indexOf('w')>-1){newW=Math.max(40,rs.ow-dx); newX=rs.ox+dx;}
+ if(rs.dir.indexOf('n')>-1){newH=Math.max(40,rs.oh-dy); newY=rs.oy+dy;}
+ b.w=newW; b.h=newH; b.x=newX; b.y=newY;
+ rsEl.style.left=b.x+'px'; rsEl.style.top=b.y+'px'; rsEl.style.width=b.w+'px'; rsEl.style.height=b.h+'px'; rsEl.style.transition='none';
+}
+function endRes(){if(rsEl){rsEl.style.transition='';} rs=null; rsEl=null; window.removeEventListener('pointermove',onRes); window.removeEventListener('pointerup',endRes);}
+async function showStorage(){
+ var panel=document.getElementById('storagePanel');
+ var info=document.getElementById('storageInfo');
+ panel.style.display='block';
+ info.innerHTML='جاري حساب المساحة...';
+ if(!supa){ info.innerHTML='شغل النت عشان تشوف المساحة'; return; }
+ try{
+  var buckets=['images','videos','models'];
+  var totalSize=0;
+  var totalFiles=0;
+  var html='';
+  for(var b=0;b<buckets.length;b++){
+   var bucket=buckets[b];
+   var res=await supa.storage.from(bucket).list('',{limit:1000});
+   if(res.data){
+    var size=0;
+    res.data.forEach(function(f){ if(f.metadata && f.metadata.size) size+=f.metadata.size; });
+    totalSize+=size;
+    totalFiles+=res.data.length;
+    var sizeMB=(size/1024/1024).toFixed(2);
+    html+='<div style="display:flex;justify-content:space-between;padding:6px;background:#222;margin:4px 0;border-radius:8px"><span>'+bucket+'</span><span>'+res.data.length+' ملف - '+sizeMB+' MB</span></div>';
+   }else{
+    html+='<div style="padding:6px;background:#222;margin:4px 0;border-radius:8px">'+bucket+' - خطأ: '+(res.error?res.error.message:'')+'</div>';
+   }
+  }
+  var totalMB=(totalSize/1024/1024).toFixed(2);
+  var percent=Math.min(100, (totalSize/(1024*1024*1024))*100).toFixed(1);
+  var freeMB=(1024 - totalMB).toFixed(2);
+  html = '<div style="background:#333;padding:10px;border-radius:8px;margin-bottom:10px"><div style="font-size:18px;font-weight:bold">'+totalMB+' MB / 1024 MB ('+percent+'%)</div><div style="width:100%;height:10px;background:#111;border-radius:10px;overflow:hidden;margin:6px 0"><div style="width:'+percent+'%;height:100%;background:'+(percent>80?'#d32f2f':percent>50?'#ff9800':'#00c853')+'"></div></div><div style="font-size:12px;color:#aaa">فاضل: '+freeMB+' MB - الملفات: '+totalFiles+'</div></div>' + html;
+  html+='<div style="font-size:11px;color:#888;margin-top:8px">الخطة المجانية: 1GB تخزين - 50MB حد أقصى للملف الواحد<br>لو قربت تتملي امسح فيديوهات قديمة من Supabase Dashboard > Storage</div>';
+  info.innerHTML=html;
+ }catch(e){
+  info.innerHTML='خطأ: '+e.message;
+ }
+}
+function save(){localStorage.setItem('sharara_final_all',JSON.stringify(pages));toast('تم الحفظ محليا');if(!supa)return;var toSave=pages.map(function(p){return{id:p.id,name:p.name,blocks:p.blocks}});supa.from('pages').delete().neq('id','000').then(function(){supa.from('pages').insert(toSave).then(function(r){if(!r.error)toast('حفظ Supabase');});});}
+async function loadStu(){
+ if(!supa)return;
+ var r=await supa.from('students').select('*');
+ var list=document.getElementById('stuList');
+ if(r.error){list.textContent=r.error.message;return;}
+ list.innerHTML='';
+ if(r.data.length===0){ list.innerHTML='<div style="padding:12px;color:#888;text-align:center">مفيش طلبة لسه</div>'; return; }
+ r.data.forEach(function(s){
+  var d=document.createElement('div');
+  d.style.cssText='padding:14px;background:#1e2128;margin:10px 0;border-radius:14px;font-size:12px;border:1px solid #2a2d35';
+  var deviceInfo = s.device_id ? '🔒 مربوط: '+(s.device_id.substr(0,16)+'...') : '📱 لم يربط جهاز بعد';
+  var statusColor = s.status==='approved'?'#00c853':s.status==='pending'?'#ffab00':'#ff5252';
+  var statusBg = s.status==='approved'?'rgba(0,200,83,0.15)':s.status==='pending'?'rgba(255,171,0,0.15)':'rgba(255,82,82,0.15)';
+  d.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-weight:800;font-size:13px">'+s.name+'</span><span style="background:'+statusBg+';color:'+statusColor+';padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700">'+s.status+'</span></div><div style="font-size:11px;color:#8b8fa3;margin-bottom:4px">'+(s.email||'')+'</div><div style="font-size:11px;color:#aaa;margin-bottom:10px">'+deviceInfo+'</div><div style="display:flex;gap:6px"><button onclick="upd(\''+s.id+'\',\'approved\')" style="flex:1;background:#00c853;padding:10px;border-radius:10px;border:0;color:#fff;font-size:12px;font-weight:700">✅ قبول</button><button onclick="upd(\''+s.id+'\',\'blocked\')" style="flex:1;background:#ff5252;padding:10px;border-radius:10px;border:0;color:#fff;font-size:12px;font-weight:700">🚫 حظر</button><button onclick="resetDevice(\''+s.id+'\')" style="flex:1;background:#ff9800;padding:10px;border-radius:10px;border:0;color:#fff;font-size:11px;font-weight:700">📱 فك الجهاز</button><button onclick="delStu(\''+s.id+'\')" style="background:#2a2d35;padding:10px 12px;border-radius:10px;border:0;color:#fff">🗑️</button></div>';
+  list.appendChild(d);
+ });
+}
+async function upd(id,st){if(!supa)return;await supa.from('students').update({status:st}).eq('id',id);loadStu();toast('تم تحديث الطالب');}
+async function resetDevice(id){if(!supa)return;if(!confirm('فك ربط الجهاز؟ الطالب هيقدر يدخل من جهاز جديد'))return;await supa.from('students').update({device_id:null}).eq('id',id);loadStu();toast('تم فك الجهاز 📱');}
+async function delStu(id){if(!supa)return;if(!confirm('مسح الطالب نهائيا؟'))return;await supa.from('students').delete().eq('id',id);loadStu();toast('تم المسح');}
+
+
+</script>
+</body>
+</html>
